@@ -1,0 +1,24 @@
+services:
+  # Spring Boot Backend Service
+  - type: web
+    name: lost-found-backend
+    env: docker
+    repo: https://github.com/Sravanthi-Agge/lost_found_portal1
+    rootDir: backend
+    plan: free
+    healthCheckPath: /api/items/all
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        value: jdbc:mysql://containers-us-west-19.railway.app:6969/railway
+      - key: SPRING_DATASOURCE_USERNAME
+        value: root
+      - key: SPRING_DATASOURCE_PASSWORD
+        value: your-generated-password
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
+      - key: SPRING_JPA_DATABASE_PLATFORM
+        value: org.hibernate.dialect.MySQLDialect
+      - key: PORT
+        value: 8080
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/*.jar
