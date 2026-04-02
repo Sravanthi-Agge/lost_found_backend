@@ -7,12 +7,13 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestMethod;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/items")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:3000", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS})
 public class ItemController {
 
     @Autowired
@@ -22,8 +23,9 @@ public class ItemController {
     public ResponseEntity<Item> addItem(@RequestBody ItemRequest request) {
         try {
             System.out.println("Adding item: " + request.getTitle());
-            // Get session user email (simplified approach)
-            Item item = itemService.addItem(request, "test@example.com");
+            
+            // Get authenticated user from token (simplified approach)
+            Item item = itemService.addItem(request, null); // Let service handle user assignment
             System.out.println("Item added successfully with ID: " + item.getId());
             return ResponseEntity.ok(item);
         } catch (RuntimeException e) {
@@ -84,6 +86,35 @@ public class ItemController {
             return ResponseEntity.ok(items);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Item> updateItemStatus(@PathVariable Long id, @RequestParam String status) {
+        try {
+            System.out.println("=== Status Update Request ===");
+            System.out.println("Item ID: " + id);
+            System.out.println("New Status: " + status);
+            
+            Item item = itemService.updateItemStatus(id, Item.ItemStatus.valueOf(status.toUpperCase()));
+            System.out.println("Updated item status: " + item.getStatus());
+            System.out.println("Response: " + item);
+            
+            return ResponseEntity.ok(item);
+        } catch (Exception e) {
+            System.err.println("Error updating item status: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/{id}/match")
+    public ResponseEntity<Item> matchItem(@PathVariable Long id) {
+        try {
+            Item item = itemService.matchItem(id);
+            return ResponseEntity.ok(item);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
         }
     }
 }

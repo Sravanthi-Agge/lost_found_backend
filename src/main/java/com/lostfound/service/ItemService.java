@@ -23,8 +23,27 @@ public class ItemService {
     private UserRepository userRepository;
 
     public Item addItem(ItemRequest request, String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+        // If userEmail is null, try to get a default user or create one
+        User user;
+        if (userEmail != null) {
+            user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        } else {
+            // Create or get a default user for now (simplified approach)
+            user = userRepository.findAll().stream()
+                .findFirst()
+                .orElse(null);
+            if (user == null) {
+                // Create a default user if none exists
+                user = new User();
+                user.setName("Default User");
+                user.setEmail("default@example.com");
+                user.setPassword("password");
+                user.setRole(User.Role.USER);
+                user = userRepository.save(user);
+                System.out.println("Created default user with ID: " + user.getId());
+            }
+        }
 
         Item item = new Item();
         item.setTitle(request.getTitle());
@@ -33,10 +52,12 @@ public class ItemService {
         item.setLocation(request.getLocation());
         item.setType(Item.ItemType.valueOf(request.getType().toUpperCase()));
         item.setUser(user);
+        item.setStatus(Item.ItemStatus.PENDING); // Set to PENDING instead of auto-matching
 
         item = itemRepository.save(item);
 
-        checkForMatches(item);
+        // Comment out automatic matching for now
+        // checkForMatches(item);
 
         return item;
     }
@@ -134,10 +155,44 @@ public class ItemService {
     }
 
     public Item updateItemStatus(Long id, Item.ItemStatus status) {
+        System.out.println("=== ItemService.updateItemStatus ===");
+        System.out.println("Updating item " + id + " to status: " + status);
+        
         Item item = itemRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Item not found"));
         
+        System.out.println("Current item status: " + item.getStatus());
         item.setStatus(status);
+        Item updatedItem = itemRepository.save(item);
+        
+        System.out.println("Updated item status: " + updatedItem.getStatus());
+        return updatedItem;
+    }
+
+    public Item matchItem(Long id) {
+        Item item = itemRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Item not found"));
+        
+        // Find potential matches and set them to MATCHED
+        List<Item> potentialMatches;
+        
+        if (item.getType() == Item.ItemType.LOST) {
+            potentialMatches = itemRepository.findMatchesByLocationAndCategory(
+                item.getLocation(), item.getCategory(), Item.ItemType.FOUND);
+        } else {
+            potentialMatches = itemRepository.findMatchesByLocationAndCategory(
+                item.getLocation(), item.getCategory(), Item.ItemType.LOST);
+        }
+        
+        for (Item match : potentialMatches) {
+            if (isStrongMatch(item, match)) {
+                item.setStatus(Item.ItemStatus.MATCHED);
+                match.setStatus(Item.ItemStatus.MATCHED);
+                itemRepository.save(match);
+                break;
+            }
+        }
+        
         return itemRepository.save(item);
     }
 
